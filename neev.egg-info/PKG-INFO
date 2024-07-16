@@ -1,0 +1,13 @@
+Metadata-Version: 2.1
+Name: neev
+Version: 0.1.0
+Summary: An end to end solution to train and deploy your own language models.
+Author: Harshit Sandilya, Jatin Thakur, Tejas Anvekar, Binoy Skaria
+Author-email: harshit@shodh.ai
+License: LICENSE
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENCE
+Requires-Dist: protobuf>=3.20.2
+Requires-Dist: pytorch_lightning
+Requires-Dist: tensorboard

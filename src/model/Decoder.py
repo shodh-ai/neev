@@ -1,6 +1,6 @@
 import torch.nn as nn
 
-from model.DecoderBlock import DecoderBlock
+from ..model.DecoderBlock import DecoderBlock
 
 
 class Decoder(nn.Module):

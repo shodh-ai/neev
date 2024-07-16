@@ -1,26 +1,33 @@
 import os
-from config_parser import ConfigReader, Config
+from .config_parser import ConfigReader, Config
+
+
+def argument_exists(parser, arg):
+    return arg in parser._option_string_actions
 
 
 def training_parser(parser):
-    parser.add_argument(
-        "-c",
-        "--config",
-        type=str,
-        help="Path to the configuration file",
-    )
-    parser.add_argument(
-        "-i",
-        "--input",
-        type=str,
-        help="Folder containing the data files (*.txt)",
-    )
-    parser.add_argument(
-        "-o",
-        "--output",
-        type=str,
-        help="Folder to save the output files",
-    )
+    if not argument_exists(parser, "--config"):
+        parser.add_argument(
+            "-c",
+            "--config",
+            type=str,
+            help="Path to the configuration file",
+        )
+    if not argument_exists(parser, "--input"):
+        parser.add_argument(
+            "-i",
+            "--input",
+            type=str,
+            help="Folder containing the data files (*.txt)",
+        )
+    if not argument_exists(parser, "--output"):
+        parser.add_argument(
+            "-o",
+            "--output",
+            type=str,
+            help="Folder to save the output files",
+        )
     args = parser.parse_args()
 
     if args.config and args.config.startswith("."):

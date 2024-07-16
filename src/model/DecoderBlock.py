@@ -1,8 +1,8 @@
 import torch.nn as nn
 
-from model.FeedForward import FeedForward
-from model.MultiHeadAttention import MultiHeadAttention
-from model.Normalizations import LayerNorm
+from ..model.FeedForward import FeedForward
+from ..model.MultiHeadAttention import MultiHeadAttention
+from ..model.Normalizations import LayerNorm
 
 
 class DecoderBlock(nn.Module):

@@ -1,5 +1,5 @@
 import torch.nn as nn
-from model.Activations import SwiGLU
+from ..model.Activations import SwiGLU
 
 
 class FeedForward(nn.Module):

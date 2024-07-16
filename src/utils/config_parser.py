@@ -1,4 +1,3 @@
-import os
 import json
 import torch
 
@@ -12,6 +11,7 @@ class Config:
         self.random_seed = 42
         self.vocab_size = 32000
         self.tokenizer = "bpe"
+        self.num_workers = 4
 
         self.batch_size = 256
         self.context_length = 1024
@@ -73,6 +73,10 @@ class Config:
 
     def verify(self):
         self.dtype = self.get_dtype(self.precision)
+        self.tokenizer_path = f"{self.output}/tokenizer"
+        self.vocab_path = f"{self.output}/vocab.json"
+        self.rev_vocab_path = f"{self.output}/rev_vocab.json"
+        self.checkpoint_path = f"{self.output}/checkpoint"
         if self.input is None:
             raise ValueError("Input not set.")
         if self.output is None:
