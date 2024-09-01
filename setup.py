@@ -11,6 +11,11 @@ setup(
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     python_requires=">=3.10",
-    install_requires=["protobuf>=3.20.2", "pytorch_lightning", "tensorboard"],
+    install_requires=[
+        "protobuf>=3.20.2",
+        "pytorch_lightning",
+        "tensorboard",
+        "litdata",
+    ],
     packages=setuptools.find_packages(),
 )

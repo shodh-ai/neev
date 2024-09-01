@@ -2,10 +2,13 @@ import torch
 import torchmetrics
 import torch.nn as nn
 import pytorch_lightning as pl
+import torchmetrics.text
+from deepspeed.ops.adam import FusedAdam
 
 from ..model.Decoder import Decoder
+from ..model.Normalizations import LayerNorm
 from ..model.PositionalEncoding import Learned
-from ..model.Loss import CrossEntropyLoss
+from ..model.Loss import ChunkedCrossEntropyLoss
 from ..model.Scheduler import CosineAnnealingWarmRestartsDecay
 
 
@@ -40,11 +43,12 @@ class Transformer(pl.LightningModule):
             self.dropout,
             self.external_dtype,
         )
+        self.final_norm = LayerNorm(self.embeddingDim)
         self.linear = nn.Linear(
             self.embeddingDim, self.vocabSize, dtype=self.external_dtype
         )
 
-        self.loss_fn = CrossEntropyLoss()
+        self.loss_fn = ChunkedCrossEntropyLoss(ignore_index=0)
         self.accuracy = torchmetrics.Accuracy(
             task="multiclass", num_classes=self.vocabSize
         )
@@ -55,12 +59,15 @@ class Transformer(pl.LightningModule):
             task="multiclass", num_classes=self.vocabSize
         )
         self.recall = torchmetrics.Recall(task="multiclass", num_classes=self.vocabSize)
+        self.ppl = torchmetrics.text.Perplexity()
 
     def forward(self, x):
         x = self.inputEmbed(x)
         x = self.pe(x)
         x = self.decoder(x)
-        x = self.linear(x).reshape(-1, self.vocabSize)
+        x = self.final_norm(x)
+        x = self.linear(x)
+        x = x.reshape(-1, self.vocabSize)
         return x
 
     def training_step(self, batch, batch_idx):
@@ -77,6 +84,7 @@ class Transformer(pl.LightningModule):
         output = self.forward(x)
         loss = self.loss_fn(output, y)
         accuracy = self.accuracy(output, y)
+        # ppl = self.ppl(output, y)
         dict_log = {"val_loss": loss, "val_accuracy": accuracy}
         self.log_dict(dict_log, sync_dist=True)
         return loss
@@ -106,10 +114,12 @@ class Transformer(pl.LightningModule):
         return output
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(
+        optimizer = FusedAdam(
             self.parameters(),
             lr=self.learningRate,
             weight_decay=self.weightDecay,
+            betas=(0.9, 0.95),
+            eps=1e-8,
         )
         lr_scheduler = {
             "scheduler": CosineAnnealingWarmRestartsDecay(

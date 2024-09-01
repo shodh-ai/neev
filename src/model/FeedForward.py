@@ -14,9 +14,9 @@ class FeedForward(nn.Module):
         self.dtype = dtype
 
         self.dropoutLayer = nn.Dropout(self.dropout)
-        self.inTranform = nn.Linear(embeddingDim, embeddingDim, dtype=self.dtype)
+        self.inTranform = nn.Linear(embeddingDim, 4 * embeddingDim, dtype=self.dtype)
         self.activation = SwiGLU()
-        self.outTransform = nn.Linear(embeddingDim, embeddingDim, dtype=self.dtype)
+        self.outTransform = nn.Linear(4 * embeddingDim, embeddingDim, dtype=self.dtype)
 
     def forward(self, x):
         x = self.inTranform(x)

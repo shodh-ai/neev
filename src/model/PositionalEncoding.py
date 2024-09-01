@@ -49,23 +49,78 @@ class Cosine(nn.Module):
 
 
 class RoPE(nn.Module):
-    def __init__(self, context_length, embedding_dim, dtype):
+    def __init__(
+        self, context_length, embedding_dim, dtype, base=10000, save_inv_freqs=False
+    ):
         super(RoPE, self).__init__()
+        inv_freq = 1.0 / (base ** (torch.arange(0, embedding_dim, 2) / embedding_dim))
+        self.register_buffer("inv_freq", inv_freq, persistent=save_inv_freqs)
         self.dim = embedding_dim
         self.context_length = context_length
         self.dtype = dtype
-        self.inv_freq = 1.0 / (
-            10000 ** (torch.arange(0, embedding_dim, 2) / embedding_dim)
-        )
-        self.inv_freq = self.inv_freq.to(dtype)
+        self.base = base
 
-    def forward(self, x):
-        seq_len = self.context_length
-        t = torch.arange(seq_len, dtype=self.dtype, device=x.device)
-        freqs = torch.einsum("i,j->ij", t, self.inv_freq.to(x.device))
-        pos_enc = (
-            torch.cat([torch.sin(freqs), torch.cos(freqs)], dim=-1)
-            .to(x.device)
-            .to(self.dtype)
+        self.context_length_cached = None
+        self.cos_cached = None
+        self.sin_cached = None
+
+        cos_cached, sin_cached, inv_freq = self._prepare_cache()
+
+        self.register_buffer("inv_freq", inv_freq, persistent=save_inv_freqs)
+        self.cos_cached = cos_cached
+        self.sin_cached = sin_cached
+
+    def _prepare_cache(self):
+        inv_freq = 1.0 / (
+            self.base ** (torch.arange(0, self.dim, 2).float() / self.dim)
         )
-        return x * pos_enc
+
+        t = torch.arange(self.context_length).type_as(inv_freq)
+        freqs = torch.einsum("i,j->ij", t, inv_freq)
+        emb = torch.cat((freqs, freqs), dim=-1)
+
+        cos_cached = emb.cos()[:, None, None, :]
+        sin_cached = emb.sin()[:, None, None, :]
+
+        return (
+            cos_cached.to(self.dtype),
+            sin_cached.to(self.dtype),
+            inv_freq.to(self.dtype),
+        )
+
+    def forward(self, x, seq_dim=0, seq_len=None):
+        if seq_len is None:
+            seq_len = x.shape[seq_dim]
+
+        assert seq_len <= self.context_length
+
+        if seq_len != self.context_length:
+            return (
+                self.cos_cached[:seq_len, ...].to(x.device),
+                self.sin_cached[:seq_len, ...].to(x.device),
+            )
+        else:
+            return self.cos_cached.to(x.device), self.sin_cached.to(x.device)
+
+    def rotate_half(self, x):
+        x1, x2 = x[..., : x.shape[-1] // 2], x[..., x.shape[-1] // 2 :]
+        return torch.cat((-x2, x1), dim=x1.ndim - 1)
+
+    def apply_rotary_pos_emb(self, q, k, cos, sin, offset: int = 0):
+        cos, sin = (
+            cos[offset : q.shape[0] + offset, ...],
+            sin[offset : q.shape[0] + offset, ...],
+        )
+
+        return (q * cos) + (self.rotate_half(q) * sin), (k * cos) + (
+            self.rotate_half(k) * sin
+        )
+
+    def apply_rotary_pos_emb_torch(self, q, k, cos, sin, offset: int = 0):
+        cos, sin = (
+            cos[offset : q.shape[0] + offset, ...],
+            sin[offset : q.shape[0] + offset, ...],
+        )
+        return (q * cos) + (self.rotate_half(q) * sin), (k * cos) + (
+            self.rotate_half(k) * sin
+        )

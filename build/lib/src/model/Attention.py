@@ -1,4 +1,3 @@
-import math
 import torch
 import torch.nn as nn
 
@@ -13,9 +12,14 @@ class scaledDotProductAttention(nn.Module):
         self.dropoutLayer = nn.Dropout(dropout)
 
     def forward(self, q, k, v, mask):
-        k = k.transpose(-2, -1)
-        scores = torch.matmul(q, k)
-        scores = scores / math.sqrt(self.embeddingDim)
+        q = q.permute(1, 2, 0, 3)
+        k = k.permute(1, 2, 0, 3)
+        v = v.permute(1, 2, 0, 3)
+        q = q.reshape(q.size(0) * q.size(1), q.size(2), q.size(3))
+        k = k.reshape(k.size(0) * k.size(1), k.size(2), k.size(3))
+        v = v.reshape(v.size(0) * v.size(1), v.size(2), v.size(3))
+        k = torch.transpose(k, 1, 2)
+        scores = torch.matmul(q, k) / torch.sqrt(torch.tensor(self.embeddingDim))
         scores = scores + mask.to(self.dtype).to(scores.device)
         attention = nn.Softmax(dim=-1)(scores).to(self.dtype)
         out = torch.matmul(attention, v)

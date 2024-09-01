@@ -1,6 +1,7 @@
 import torch
 import pytorch_lightning as pl
 import torch.utils.data as data
+from lightning.data import optimize, StreamingDataLoader, StreamingDataset
 
 
 class DataModule(pl.LightningDataModule):
@@ -17,9 +18,12 @@ class DataModule(pl.LightningDataModule):
         self.Tokenizer = tokenizer
         self.Tensorizer = tensorizer
 
-    def setup(self, stage: str = None):
+    def preprocess(self):
         tokens = self.Tokenizer.tokenize()
         self.data = self.Tensorizer.tensorize(tokens)
+
+    def setup(self, stage: str = None):
+        self.preprocess()
         self.dataset = data.TensorDataset(self.data[0], self.data[1])
         self.val_len = int(self.val_frac * len(self.dataset))
         self.test_len = int(self.test_frac * len(self.dataset))

@@ -11,3 +11,4 @@ License-File: LICENCE
 Requires-Dist: protobuf>=3.20.2
 Requires-Dist: pytorch_lightning
 Requires-Dist: tensorboard
+Requires-Dist: litdata
