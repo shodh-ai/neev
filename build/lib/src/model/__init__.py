@@ -29,6 +29,7 @@ class Transformer(pl.LightningModule):
         self.T_mult = config.T_mult
         self.eta_min = config.eta_min
         self.decay = config.lr_decay
+        self.config = config
 
         self.inputEmbed = nn.Embedding(
             self.vocabSize, self.embeddingDim, dtype=self.external_dtype
@@ -42,6 +43,7 @@ class Transformer(pl.LightningModule):
             self.numLayers,
             self.dropout,
             self.external_dtype,
+            self.config
         )
         self.final_norm = LayerNorm(self.embeddingDim)
         self.linear = nn.Linear(

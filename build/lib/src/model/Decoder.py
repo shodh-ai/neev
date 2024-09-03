@@ -13,6 +13,7 @@ class Decoder(nn.Module):
         numLayers,
         dropout,
         dtype,
+        config
     ):
         super(Decoder, self).__init__()
 
@@ -23,6 +24,7 @@ class Decoder(nn.Module):
         self.numLayers = numLayers
         self.dropout = dropout
         self.dtype = dtype
+        self.config = config
 
         self.decoderBlocks = nn.ModuleList(
             [
@@ -33,6 +35,7 @@ class Decoder(nn.Module):
                     self.numHeads,
                     self.dropout,
                     self.dtype,
+                    self.config
                 )
                 for _ in range(self.numLayers)
             ]

@@ -15,6 +15,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 
+
 class NeevTrainer:
     def __init__(self, input_dir=None, output_dir=None, config_path=None, parser=None):
 

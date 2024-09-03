@@ -47,6 +47,10 @@ class MultiHeadAttention(nn.Module):
         k = self.splitHeads(k)
         v = self.splitHeads(v)
 
+        q= q.permute(2,0,1,3)
+        k= k.permute(2,0,1,3)
+        v= v.permute(2,0,1,3)
+
         out = self.attention(q, k, v, self.mask)
         out = self.combineHeads(out)
         out = self.Wo(out)
