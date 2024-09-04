@@ -30,23 +30,39 @@ class MultiHeadAttention(nn.Module):
         )
 
     def splitHeads(self, x):
+        # (batch,seqlen,numHeads,headDim)
         x = x.reshape(-1, self.contextLength, self.numHeads, self.headDim)
+
+        # (batch,seqlen,numHeads,headDim) -> (batch,numHeads,seqlen,headDim)
         x = x.transpose(1, 2)
+
         return x
 
     def combineHeads(self, x):
+
+        #(batch*numHeads,seqlen,headDim) -> (seqlen , batch*numHeads, headDim)
         x = x.transpose(0, 1)
-        x = x.reshape(self.contextLength, -1, self.embeddingDim)
+
+        #(seqlen , batch*numHeads, headDim) -> (seqlen , batch, numHeads * headDim) 
+        x = x.reshape(self.contextLength,-1, self.embeddingDim)
+
         return x
 
     def forward(self, x):
         qkv = self.Wqkv(x)
+
+        # (seqlen,batch,numHeads,3 * headDim) 
         qkv = qkv.reshape(self.contextLength, -1, self.numHeads, 3 * self.headDim)
+
+        # (seqlen,batch,numHeads,3 * headDim) ->  (seqlen,batch,numHeads,headDim) 
         q, k, v = qkv.split(self.headDim, -1)
+
+        #(seqlen,batch,numHeads,headDim)  -> (batch,numHeads,seqlen,headDim)
         q = self.splitHeads(q)
         k = self.splitHeads(k)
         v = self.splitHeads(v)
 
+        # (batch,numHeads,seqlen,headDim) -> (seqlen,batch,numHeads,headDim)
         q= q.permute(2,0,1,3)
         k= k.permute(2,0,1,3)
         v= v.permute(2,0,1,3)
@@ -54,6 +70,8 @@ class MultiHeadAttention(nn.Module):
         out = self.attention(q, k, v, self.mask)
         out = self.combineHeads(out)
         out = self.Wo(out)
-        out = out.transpose(0, 1)
+
+        #(seqlen , batch, numHeads * headDim)  ->  (batch, seqlen,  numHeads * headDim)
+        out = out.transpose(0,1)
 
         return out
