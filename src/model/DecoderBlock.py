@@ -14,6 +14,7 @@ class DecoderBlock(nn.Module):
         numHeads,
         dropout,
         dtype,
+        decoder_architechture
     ):
         super(DecoderBlock, self).__init__()
 
@@ -23,6 +24,7 @@ class DecoderBlock(nn.Module):
         self.numHeads = numHeads
         self.dropout = dropout
         self.dtype = dtype
+        self.decoder_architechture = decoder_architechture
 
         self.MHA = MultiHeadAttention(
             self.batchSize,
@@ -43,10 +45,15 @@ class DecoderBlock(nn.Module):
         self.normalisation_ffn = LayerNorm(self.embeddingDim)
 
     def forward(self, x):
-        h = self.normalisation_mha(x)
-        h = self.MHA(h)
-        x = x + h
-        h = self.normalisation_ffn(x)
-        h = self.FF(h)
-        x = x + h
+        if(self.decoder_architechture == "norm_rearrange"):
+            x = x + self.normalisation_mha(self.MHA(x))
+            x = x + self.normalisation_ffn(self.FF(x))
+        elif(self.decoder_architechture  == "post_norm"):
+            x = self.normalisation_mha(x + self.MHA(x))
+            x = self.normalisation_ffn(x + self.FF(x))
+        elif(self.decoder_architechture  == "gpt_j_residual"):
+            x = x + self.MHA(self.normalisation_mha(x))  + self.FF(self.normalisation_ffn(x))
+        else:
+            x = x + self.MHA(self.normalisation_mha(x))
+            x = x + self.FF(self.normalisation_ffn(x))    
         return x

@@ -28,7 +28,8 @@ class Transformer(pl.LightningModule):
         self.T_0 = config.T_0
         self.T_mult = config.T_mult
         self.eta_min = config.eta_min
-        self.decay = config.lr_decay
+        self.lr_decay = config.lr_decay
+        self.decoder_architechture = config.decoder_architechture
 
         self.inputEmbed = nn.Embedding(
             self.vocabSize, self.embeddingDim, dtype=self.external_dtype
@@ -42,23 +43,14 @@ class Transformer(pl.LightningModule):
             self.numLayers,
             self.dropout,
             self.external_dtype,
+            self.decoder_architechture
         )
         self.final_norm = LayerNorm(self.embeddingDim)
         self.linear = nn.Linear(
             self.embeddingDim, self.vocabSize, dtype=self.external_dtype
-        )
+        ) 
 
         self.loss_fn = ChunkedCrossEntropyLoss(ignore_index=0)
-        self.accuracy = torchmetrics.Accuracy(
-            task="multiclass", num_classes=self.vocabSize
-        )
-        self.f1_score = torchmetrics.F1Score(
-            task="multiclass", num_classes=self.vocabSize
-        )
-        self.precision = torchmetrics.Precision(
-            task="multiclass", num_classes=self.vocabSize
-        )
-        self.recall = torchmetrics.Recall(task="multiclass", num_classes=self.vocabSize)
         self.ppl = torchmetrics.text.Perplexity()
 
     def forward(self, x):
@@ -67,43 +59,47 @@ class Transformer(pl.LightningModule):
         x = self.decoder(x)
         x = self.final_norm(x)
         x = self.linear(x)
-        x = x.reshape(-1, self.vocabSize)
         return x
 
     def training_step(self, batch, batch_idx):
-        x, y = batch
-        y = y.reshape(-1)
+        x = batch[:, : self.contextLength]
+        y = batch[:, 1:].long()
+
         output = self.forward(x)
-        loss = self.loss_fn(output, y)
-        self.log("loss", loss, prog_bar=True, sync_dist=True)
+        loss = self.loss_fn(
+            output.reshape(output.shape[0] * output.shape[1], self.vocabSize), y
+        )
+
+        self.log("train_loss", loss, prog_bar=True, sync_dist=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        x, y = batch
-        y = y.reshape(-1)
+        x = batch[:, : self.contextLength]
+        y = batch[:, 1:].long()
+
         output = self.forward(x)
-        loss = self.loss_fn(output, y)
-        accuracy = self.accuracy(output, y)
-        # ppl = self.ppl(output, y)
-        dict_log = {"val_loss": loss, "val_accuracy": accuracy}
+        loss = self.loss_fn(
+            output.reshape(output.shape[0] * output.shape[1], self.vocabSize), y
+        )
+        val_ppl = self.ppl(output, y)
+        dict_log = {
+            "val_loss": loss,
+            "val_ppl": val_ppl,
+        }
         self.log_dict(dict_log, sync_dist=True)
         return loss
 
     def test_step(self, batch, batch_idx):
-        x, y = batch
-        y = y.reshape(-1)
+        x = batch[:, : self.contextLength]
+        y = batch[:, 1:].long()
         output = self.forward(x)
-        loss = self.loss_fn(output, y)
-        accuracy = self.accuracy(output, y)
-        f1_score = self.f1_score(output, y)
-        precision = self.precision(output, y)
-        recall = self.recall(output, y)
+        loss = self.loss_fn(
+            output.reshape(output.shape[0] * output.shape[1], self.vocabSize), y
+        )
+        test_ppl = self.ppl(output, y)
         dict_log = {
             "test_loss": loss,
-            "test_accuracy": accuracy,
-            "test_f1_score": f1_score,
-            "test_precision": precision,
-            "test_recall": recall,
+            "test_ppl": test_ppl,
         }
         self.log_dict(dict_log, sync_dist=True)
         return loss
@@ -127,7 +123,7 @@ class Transformer(pl.LightningModule):
                 T_0=self.T_0,
                 T_mult=self.T_mult,
                 eta_min=self.eta_min,
-                decay=self.decay,
+                decay=self.lr_decay,
             ),
             "name": "lr_scheduler",
         }

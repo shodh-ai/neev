@@ -32,6 +32,10 @@ class Config:
         self.log_interval = 10
         self.precision = 16
 
+
+        self.gradient_clip_val = 1
+        self.devices = 1
+
         self.deepspeed = {
             "zero_allow_untested_optimizer": True,
             "prescale_gradients": False,
