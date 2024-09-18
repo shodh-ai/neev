@@ -1,10 +1,11 @@
 from .data import DataModule
 from .model import Transformer
 from .utils.misc import measure_time
-from .data.tokenizer import Tokenizer,JsonlTokenizer
+from .data.tokenizer import Tokenizer
+from .data.binarizer import Binarizer
 
 from .utils.args_parser import training_parser
-
+import os
 
 import torch
 from argparse import ArgumentParser
@@ -15,6 +16,7 @@ from pytorch_lightning.profilers import PyTorchProfiler
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 
+
 class DataPreparer:
     def __init__(self, input_dir=None, output_dir=None, config_path=None, parser=None):
         parser = self.check_args(input_dir, output_dir, config_path, parser)
@@ -24,15 +26,23 @@ class DataPreparer:
         self.output_dir = config.output
         self.batch_size = config.batch_size
         self.vocab_size = config.vocab_size
-        self.context_length  = config.context_length
+        self.context_length = config.context_length
         self.vocab_save_path = config.vocab_save_path
         self.tokenizer_type = config.tokenizer_type
-        self.tokenizer = JsonlTokenizer(self.input_dir,self.output_dir ,self.vocab_save_path,self.tokenizer_type,self.vocab_size)
+        # self.tokenizer = JsonlTokenizer(self.input_dir,self.output_dir ,self.vocab_save_path,self.tokenizer_type,self.vocab_size)
+        self.tokenizer = Tokenizer(
+            config.input,
+            config.output,
+            config.vocab_size,
+            config.spm_convergence,
+            config.tokenizer_type,
+        )
+        self.binarizer = Binarizer(self.tokenizer.get_tokenizer(),self.input_dir,self.output_dir)
 
-
-        
     def setup(self):
-        self.tokenizer.tokenize()
+        self.tokenizer.build_vocab()
+        self.binarizer.make_bin()
+
     def check_args(self, input_dir, output_dir, config_path, parser):
         if parser is None:
             parser = ArgumentParser()
@@ -43,6 +53,7 @@ class DataPreparer:
             if config_path is not None:
                 parser.add_argument("--config", type=str, default=config_path)
         return parser
+
 
 class NeevTrainer:
     def __init__(self, input_dir=None, output_dir=None, config_path=None, parser=None):
@@ -57,12 +68,12 @@ class NeevTrainer:
         self.output_dir = config.output
         self.batch_size = config.batch_size
         self.vocab_size = config.vocab_size
-        self.context_length  = config.context_length
+        self.context_length = config.context_length
         self.vocab_save_path = config.vocab_save_path
         self.tokenizer_type = config.tokenizer_type
         self.devices = config.devices
         self.gradient_clip_val = config.gradient_clip_val
-        
+
         self.start_time = measure_time()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.logger = TensorBoardLogger("logs/", name="transformer")
@@ -76,20 +87,21 @@ class NeevTrainer:
             export_to_chrome=True,
         )
 
-        self.dataModule = DataModule(self.output_dir,self.batch_size, self.vocab_size,self.context_length)
+        self.dataModule = DataModule(
+            self.output_dir, self.batch_size, self.vocab_size, self.context_length
+        )
         if config.deepspeed is not None:
             strategy = DeepSpeedStrategy(config=config.deepspeed)
         else:
             strategy = "ddp"
-        
 
         self.checkpoint = ModelCheckpoint(
-        monitor="val_loss",
-        dirpath=f"logs/checkpoints/",
-        filename="checkpoint-step-{step:08d}",
-        save_top_k=-1,
-        mode="min",
-    )
+            monitor="val_loss",
+            dirpath=f"logs/checkpoints/",
+            filename="checkpoint-step-{step:08d}",
+            save_top_k=-1,
+            mode="min",
+        )
 
         self.trainer = Trainer(
             accelerator="auto",
@@ -105,6 +117,13 @@ class NeevTrainer:
             callbacks=[self.lr_monitor, self.checkpoint],
             gradient_clip_val=config.gradient_clip_val,
         )
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
+
+
+        if not os.listdir(self.output_dir):
+            pre_processor = DataPreparer(config_path="./config/main.json")
+            pre_processor.setup()
 
     def check_args(self, input_dir, output_dir, config_path, parser):
         if parser is None:
@@ -116,6 +135,7 @@ class NeevTrainer:
             if config_path is not None:
                 parser.add_argument("--config", type=str, default=config_path)
         return parser
+    
 
     def train(self):
         print(
@@ -149,5 +169,3 @@ class NeevTrainer:
         print(
             f"[{measure_time(self.start_time)}]Testing complete on {self.trainer.global_rank}."
         )
-
-

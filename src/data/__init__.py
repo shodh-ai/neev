@@ -55,7 +55,7 @@ class DataModule(pl.LightningDataModule):
             self.train,
             batch_size=self.batch_size,
             pin_memory=True,
-            num_workers=1,
+            num_workers=8,
            
         )
 
@@ -64,7 +64,7 @@ class DataModule(pl.LightningDataModule):
             self.val,
             batch_size=self.batch_size,
             pin_memory=True,
-            num_workers=1,
+            num_workers=8,
             
         )
 
@@ -73,6 +73,6 @@ class DataModule(pl.LightningDataModule):
             self.test,
             batch_size=self.batch_size,
             pin_memory=True,
-            num_workers=1,
+            num_workers=8,
             
         )
