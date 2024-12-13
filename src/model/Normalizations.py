@@ -3,11 +3,11 @@ import torch.nn as nn
 
 decorator = torch.compile
 
-
+@decorator
 def rms_norm(x, eps: float):
     return x * torch.rsqrt(x.square().mean(dim=-1, keepdim=True) + eps)
 
-
+@decorator
 def crms_norm(x, eps: float):
     discarded_element = x.sum(dim=-1, keepdim=True)
     return x * torch.rsqrt(

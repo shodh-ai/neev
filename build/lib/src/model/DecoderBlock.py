@@ -13,7 +13,7 @@ class DecoderBlock(nn.Module):
         embeddingDim,
         numHeads,
         dropout,
-        dtype,
+        dtype
     ):
         super(DecoderBlock, self).__init__()
 
@@ -43,10 +43,6 @@ class DecoderBlock(nn.Module):
         self.normalisation_ffn = LayerNorm(self.embeddingDim)
 
     def forward(self, x):
-        h = self.normalisation_mha(x)
-        h = self.MHA(h)
-        x = x + h
-        h = self.normalisation_ffn(x)
-        h = self.FF(h)
-        x = x + h
+        h = self.FF(self.normalisation_ffn(x))
+        x = x + self.MHA(self.normalisation_mha(x)) + h
         return x

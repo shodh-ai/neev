@@ -12,7 +12,7 @@ class Decoder(nn.Module):
         numHeads,
         numLayers,
         dropout,
-        dtype,
+        dtype
     ):
         super(Decoder, self).__init__()
 
@@ -32,7 +32,7 @@ class Decoder(nn.Module):
                     self.embeddingDim,
                     self.numHeads,
                     self.dropout,
-                    self.dtype,
+                    self.dtype
                 )
                 for _ in range(self.numLayers)
             ]
