@@ -1,6 +1,7 @@
 import pytorch_lightning as pl
 from lightning.data import StreamingDataset, StreamingDataLoader
 from litdata import TokensLoader
+import torch
 
 
 class DataModule(pl.LightningDataModule):
@@ -26,6 +27,20 @@ class DataModule(pl.LightningDataModule):
             input_dir=self.test_path,
             item_loader=TokensLoader(block_size=self.context_length + 1),
         )
+        print("++++++++++++++++++++++++++++++++++++++++++++")
+        print(len(self.train))
+        print("++++++++++++++++++++++++++++++++++++++++++++")
+        X = []
+        for item in self.train:
+            X.append(item)
+        X = torch.stack(X)
+        print(X.shape)
+        print("++++++++++++++++++++++++++++++++++++++++++++")
+        torch.set_printoptions(threshold=float("inf"))
+
+        for i in range(min(1000, X.shape[0])):
+            print(X[i])
+        print("++++++++++++++++++++++++++++++++++++++++++++")
 
     def train_dataloader(self):
         return StreamingDataLoader(
