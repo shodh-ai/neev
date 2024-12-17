@@ -1,6 +1,7 @@
 import pytorch_lightning as pl
 from lightning.data import StreamingDataset, StreamingDataLoader
 from litdata import TokensLoader
+import torch
 
 
 class DataModule(pl.LightningDataModule):

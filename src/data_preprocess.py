@@ -12,9 +12,14 @@ class DataPreprocess:
         config = ConfigReader(config).read()
         self.input_dir = config.input
         self._convert_to_text()
-        self.tokenizer = NeevTokenizer(config.input, config.output, config.vocab_size)
+        self.tokenizer = NeevTokenizer(
+            config.input,
+            config.output,
+            config.vocab_size,
+            config.context_length,
+        )
         self.binarizer = Binarizer(
-            self.tokenizer.get_tokenizer_path(),
+            self.tokenizer,
             config.input,
             config.output,
             config.context_length,
